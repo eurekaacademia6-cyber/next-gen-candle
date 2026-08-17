@@ -147,6 +147,7 @@ class Signal:
     horizon_seconds: int = 30
     current_reference: str = "CURRENT VISIBLE PRICE"
     expected_move_norm: float = 0.0
+    diagnostics: dict = field(default_factory=dict)
 
     @property
     def down_probability(self) -> float:

@@ -418,8 +418,8 @@ class MainWindow(QMainWindow):
                 signal = self.engine.analyze(
                     detection.candles,
                     detection.quality,
-                    horizon_seconds=(
-                        self.clock.timeframe_seconds
+                    timeframe_minutes=(
+                        self.clock.timeframe_seconds / 60.0
                     ),
                     volume_available=(
                         detection.volume_available
@@ -632,18 +632,26 @@ class MainWindow(QMainWindow):
                     f"{component.probability_up*100:.1f}%"
                 )
 
+        d = getattr(signal, "diagnostics", {}) or {}
         indicators = [
             "The engine predicts DIRECTION, not a guaranteed exact price.",
             "",
-            "The prediction reference is the CURRENT VISIBLE PRICE.",
-            f"Prediction horizon: {signal.horizon_seconds}s",
+            "Reference: CURRENT VISIBLE PRICE",
+            f"Prediction window: {self.clock.timeframe_seconds}s",
             "",
-            "Every unavailable data source is explicitly gated.",
-            "True volume: unavailable from screen pixels.",
-            "True MTF: unavailable from one visible timeframe.",
-            "",
-            f"Expected normalized move: "
-            f"{signal.expected_move_norm:+.3f}",
+            f"RSI: {d.get('rsi')}",
+            f"MACD histogram: {d.get('macd_hist')}",
+            f"Stochastic K/D: {d.get('stoch_k')} / {d.get('stoch_d')}",
+            f"CCI: {d.get('cci')}",
+            f"Williams %R: {d.get('williams_r')}",
+            f"EMA 9/21/50/200: {d.get('ema9')} / {d.get('ema21')} / {d.get('ema50')} / {d.get('ema200')}",
+            f"ADX: {d.get('adx')}",
+            f"Volatility: {d.get('volatility_regime')}",
+            f"Support/Resistance: {d.get('support')} / {d.get('resistance')}",
+            f"VWAP: {d.get('vwap')}",
+            f"Fib 38.2/50/61.8: {d.get('fib_382')} / {d.get('fib_500')} / {d.get('fib_618')}",
+            f"Pivot/R1/S1: {d.get('pivot')} / {d.get('pivot_r1')} / {d.get('pivot_s1')}",
+            f"Structure: {d.get('structure')}",
         ]
 
         self.indicator_text.setPlainText(

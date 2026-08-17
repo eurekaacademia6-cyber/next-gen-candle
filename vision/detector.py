@@ -1,9 +1,23 @@
+from dataclasses import dataclass
 import cv2, numpy as np
 from .models import Candle, Detection
 
+@dataclass
+class DetectorConfig:
+    min_candles: int = 10
+    max_candles: int = 30
+    min_body_width_px: int = 2
+
 class CandleDetector:
-    def __init__(self,min_candles=10,max_candles=30,min_body_width=2):
-        self.min_candles=min_candles; self.max_candles=max_candles; self.min_body_width=min_body_width
+    def __init__(self, config=None, max_candles=None, min_body_width=2):
+        if isinstance(config, DetectorConfig):
+            self.min_candles = config.min_candles
+            self.max_candles = config.max_candles
+            self.min_body_width = config.min_body_width_px
+        else:
+            self.min_candles = 10 if config is None else int(config)
+            self.max_candles = 30 if max_candles is None else int(max_candles)
+            self.min_body_width = int(min_body_width)
 
     def detect(self, frame_bgr, roi_norm):
         h,w=frame_bgr.shape[:2]
@@ -48,9 +62,22 @@ class CandleDetector:
             op=float(bb if bull else bt); cp=float(bt if bull else bb)
             dens=min(1.0,len(ys)/max(1,(z-a+1)*max(1,y1-y0+1)*0.55)); conf=min(1.0,0.45+0.35*dens+0.20*min(1.0,(z-a+1)/8.0))
             candles.append(Candle(cx+l,a+l,z+l,bt+t,bb+t,high+t,low+t,op+t,cp+t,bull,len(ys),conf))
+        if candles:
+            for c in candles:
+                c.is_current = False
+            candles[-1].is_current = True
+
         quality=self._quality(candles)
         msg=(f"{len(candles)} candles detected. Vision locked." if len(candles)>=self.min_candles and quality>=0.6 else f"Only {len(candles)} candles detected. Put the overlay ROI on the plot area.")
-        return Detection(candles,quality,msg,(l,t,r,b))
+        return Detection(
+            candles=candles,
+            quality=quality,
+            message=msg,
+            roi=(l,t,r,b),
+            current_index=(len(candles)-1 if candles else -1),
+            current_price_y=(candles[-1].close_px if candles else None),
+            price_proxy_ready=bool(candles),
+        )
 
     def _merge(self, groups):
         out=[]
