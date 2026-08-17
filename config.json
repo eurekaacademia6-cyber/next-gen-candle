@@ -1,0 +1,19 @@
+{
+  "window_title_contains": "Quotex",
+  "capture_fps": 8,
+  "overlay_opacity": 0.60,
+  "min_candles": 10,
+  "max_candles": 30,
+  "min_body_width_px": 2,
+  "chart_roi": {
+    "left": 0.08,
+    "top": 0.18,
+    "right": 0.98,
+    "bottom": 0.96
+  },
+  "signal": {
+    "min_confidence": 0.66,
+    "min_agreement": 0.70,
+    "min_direction_edge": 0.12
+  }
+}
