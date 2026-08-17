@@ -62,3 +62,7 @@ python main.py
 ```
 
 For the packaged Windows installer, use the GitHub Actions installer artifact.
+
+
+## 4.0.1 packaging fix
+PyInstaller 6 onedir builds may place bundled data files under `_internal`. The application now searches both the bundle root and `_internal`, and the CI verification checks both locations.

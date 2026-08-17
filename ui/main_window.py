@@ -70,14 +70,29 @@ class MainWindow(QMainWindow):
         self._build_ui()
 
     def _load_config(self):
-        if getattr(sys, "frozen", False) and hasattr(sys, "_MEIPASS"):
-            base = Path(sys._MEIPASS)
+        # PyInstaller 6 onedir builds can place data in the bundle's
+        # _internal directory. Search both the runtime bundle root and
+        # its parent so installed/portable builds are equally robust.
+        candidates = []
+
+        if getattr(sys, "frozen", False):
+            meipass = Path(getattr(sys, "_MEIPASS", Path(sys.executable).parent))
+            candidates.extend([
+                meipass / "config.json",
+                meipass / "_internal" / "config.json",
+                Path(sys.executable).resolve().parent / "config.json",
+                Path(sys.executable).resolve().parent / "_internal" / "config.json",
+            ])
         else:
-            base = Path(__file__).resolve().parent.parent
+            source_root = Path(__file__).resolve().parent.parent
+            candidates.append(source_root / "config.json")
 
-        p = base / "config.json"
+        p = next(
+            (candidate for candidate in candidates if candidate.exists()),
+            None,
+        )
 
-        if p.exists():
+        if p is not None:
             return json.loads(
                 p.read_text(encoding="utf-8")
             )
