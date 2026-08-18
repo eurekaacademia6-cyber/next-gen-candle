@@ -66,3 +66,7 @@ For the packaged Windows installer, use the GitHub Actions installer artifact.
 
 ## 4.0.1 packaging fix
 PyInstaller 6 onedir builds may place bundled data files under `_internal`. The application now searches both the bundle root and `_internal`, and the CI verification checks both locations.
+
+
+## 4.0.2 packaging design
+The application no longer depends on an external config.json file. Default configuration is embedded in the executable so the installer is self-contained.

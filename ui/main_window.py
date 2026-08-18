@@ -69,48 +69,29 @@ class MainWindow(QMainWindow):
 
         self._build_ui()
 
-    def _load_config(self):
-        # PyInstaller 6 onedir builds can place data in the bundle's
-        # _internal directory. Search both the runtime bundle root and
-        # its parent so installed/portable builds are equally robust.
-        candidates = []
-
-        if getattr(sys, "frozen", False):
-            meipass = Path(getattr(sys, "_MEIPASS", Path(sys.executable).parent))
-            candidates.extend([
-                meipass / "config.json",
-                meipass / "_internal" / "config.json",
-                Path(sys.executable).resolve().parent / "config.json",
-                Path(sys.executable).resolve().parent / "_internal" / "config.json",
-            ])
-        else:
-            source_root = Path(__file__).resolve().parent.parent
-            candidates.append(source_root / "config.json")
-
-        p = next(
-            (candidate for candidate in candidates if candidate.exists()),
-            None,
-        )
-
-        if p is not None:
-            return json.loads(
-                p.read_text(encoding="utf-8")
-            )
-
-        return {
-            "window_title_contains": "Quotex",
-            "capture_fps": 8,
-            "overlay_opacity": 0.52,
-            "min_candles": 10,
-            "max_candles": 30,
-            "min_body_width_px": 2,
-            "chart_roi": {
-                "left": 0.08,
-                "top": 0.18,
-                "right": 0.98,
-                "bottom": 0.96,
-            },
-        }
+def _load_config(self):
+    # Configuration is intentionally embedded in the application so the
+    # installed EXE does not depend on an external config.json file.
+    # This makes the Windows installer self-contained.
+    return {
+        "window_title_contains": "Quotex",
+        "capture_fps": 8,
+        "overlay_opacity": 0.60,
+        "min_candles": 10,
+        "max_candles": 30,
+        "min_body_width_px": 2,
+        "chart_roi": {
+            "left": 0.08,
+            "top": 0.18,
+            "right": 0.98,
+            "bottom": 0.96,
+        },
+        "signal": {
+            "min_confidence": 0.66,
+            "min_agreement": 0.70,
+            "min_direction_edge": 0.12,
+        },
+    }
 
     def _build_ui(self):
         central = QWidget()

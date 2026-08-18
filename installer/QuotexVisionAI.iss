@@ -1,5 +1,5 @@
 #define MyAppName "Quotex Vision AI"
-#define MyAppVersion "4.0"
+#define MyAppVersion "4.0.2"
 #define MyAppPublisher "Quotex Vision AI"
 #define MyAppExeName "QuotexVisionAI.exe"
 
