@@ -1,3 +1,4 @@
+import sys
 from __future__ import annotations
 
 import json
@@ -92,6 +93,9 @@ def _load_config(self):
             "min_direction_edge": 0.12,
         },
     }
+
+    def _cfg(self):
+        return self._load_config()
 
     def _build_ui(self):
         central = QWidget()

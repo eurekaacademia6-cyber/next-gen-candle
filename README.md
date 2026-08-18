@@ -70,3 +70,7 @@ PyInstaller 6 onedir builds may place bundled data files under `_internal`. The 
 
 ## 4.0.2 packaging design
 The application no longer depends on an external config.json file. Default configuration is embedded in the executable so the installer is self-contained.
+
+
+## 4.0.3 runtime fix
+The MainWindow configuration method mismatch is fixed. The app now provides both `_load_config()` and `_cfg()` compatibility paths and the CI workflow smoke-tests MainWindow construction before packaging.
