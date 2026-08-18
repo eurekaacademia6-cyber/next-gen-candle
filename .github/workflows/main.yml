@@ -1,4 +1,4 @@
-name: Build Quotex Vision AI 4.0.2
+name: Build Quotex Vision AI - NextGen 4.0.3
 
 on:
   push:
@@ -11,15 +11,22 @@ permissions:
   contents: read
 
 jobs:
-  build:
+  build-installer:
     name: Build Windows Installer
     runs-on: windows-latest
 
     steps:
 
-      - name: Checkout
+      # =========================================================
+      # 1. CHECKOUT
+      # =========================================================
+      - name: Checkout repository
         uses: actions/checkout@v6
 
+
+      # =========================================================
+      # 2. PYTHON
+      # =========================================================
       - name: Set up Python 3.12
         uses: actions/setup-python@v6
         with:
@@ -27,77 +34,199 @@ jobs:
           cache: pip
           cache-dependency-path: requirements.txt
 
+
+      # =========================================================
+      # 3. DEPENDENCIES
+      # =========================================================
       - name: Install dependencies
         shell: pwsh
         run: |
           python -m pip install --upgrade pip
+
           python -m pip install -r requirements.txt
+
           python -m pip install pyinstaller
 
-      - name: Verify project files
+
+      # =========================================================
+      # 4. VERIFY REQUIRED PROJECT FILES
+      # =========================================================
+      - name: Verify project structure
         shell: pwsh
         run: |
-          $files = @(
+
+          $required = @(
             "main.py",
             "requirements.txt",
             "capture.py",
             "timing.py",
+
             "vision\models.py",
             "vision\detector.py",
+
             "analysis\engine.py",
             "analysis\indicators.py",
+
             "ui\main_window.py",
             "ui\overlay.py",
+
             "installer\QuotexVisionAI.iss"
           )
 
-          foreach ($file in $files) {
+          foreach ($file in $required) {
+
             if (!(Test-Path $file)) {
-              Write-Error "Missing required file: $file"
+
+              Write-Error `
+                "Missing required file: $file"
+
             }
 
             Write-Host "OK: $file"
           }
 
-      - name: Validate Python
+
+      # =========================================================
+      # 5. PYTHON SYNTAX
+      # =========================================================
+      - name: Validate Python source
         shell: pwsh
         run: |
+
           python -m compileall .
 
           if ($LASTEXITCODE -ne 0) {
-            Write-Error "Python validation failed."
+
+            Write-Error `
+              "Python syntax validation failed."
+
           }
 
-      - name: Validate imports
+          Write-Host `
+            "Python syntax validation passed."
+
+
+      # =========================================================
+      # 6. IMPORT VALIDATION
+      # =========================================================
+      - name: Validate module imports
         shell: pwsh
         run: |
-          python -c "from vision.detector import CandleDetector, DetectorConfig; from vision.models import Candle, Detection, Signal; from analysis.engine import AnalysisEngine; from analysis.indicators import build_snapshot; from timing import CandleClock; from ui.overlay import Overlay; from ui.main_window import MainWindow; print('ALL IMPORTS OK')"
+
+          python -c "from vision.detector import CandleDetector, DetectorConfig; from vision.models import Candle, Detection, Signal; from analysis.engine import AnalysisEngine; from analysis.indicators import build_snapshot; from timing import CandleClock; from ui.overlay import Overlay; from ui.main_window import MainWindow; print('ALL MODULE IMPORTS OK')"
 
           if ($LASTEXITCODE -ne 0) {
-            Write-Error "Import validation failed."
+
+            Write-Error `
+              "Module import validation failed."
+
           }
 
+
+      # =========================================================
+      # 7. REAL QT RUNTIME SMOKE TEST
+      # =========================================================
+      - name: Test MainWindow startup
+        shell: pwsh
+        env:
+          QT_QPA_PLATFORM: offscreen
+        run: |
+
+          python -c "from PySide6.QtWidgets import QApplication; from ui.main_window import MainWindow; app=QApplication([]); window=MainWindow(); print('MAINWINDOW STARTUP OK'); window.close(); app.quit()"
+
+          if ($LASTEXITCODE -ne 0) {
+
+            Write-Error `
+              "MainWindow startup test failed."
+
+          }
+
+
+      # =========================================================
+      # 8. TEST CORE ANALYSIS ENGINE
+      # =========================================================
+      - name: Test analysis engine
+        shell: pwsh
+        run: |
+
+          python -c "from vision.models import Candle; from analysis.engine import AnalysisEngine; c=[]; p=100.0; [c.append(Candle(i*10,i*10-2,i*10+2,50,60,p,p+(0.2 if i%2==0 else -0.15),p+(0.2 if i%2==0 else -0.15),p+(0.2 if i%2==0 else -0.15),i%2==0,100,0.95)) or (globals().__setitem__('p',p+(0.2 if i%2==0 else -0.15))) for i in range(20)]; s=AnalysisEngine().analyze(c,0.90); print('ENGINE TEST:',s.label,s.up_probability,s.confidence)"
+
+          if ($LASTEXITCODE -ne 0) {
+
+            Write-Error `
+              "Analysis engine test failed."
+
+          }
+
+
+      # =========================================================
+      # 9. CLEAN BUILD OUTPUT
+      # =========================================================
       - name: Clean build directories
         shell: pwsh
         run: |
-          Remove-Item -Recurse -Force build -ErrorAction SilentlyContinue
-          Remove-Item -Recurse -Force dist -ErrorAction SilentlyContinue
-          Remove-Item -Recurse -Force installer\dist -ErrorAction SilentlyContinue
 
-          New-Item -ItemType Directory -Force -Path installer\dist | Out-Null
+          Remove-Item `
+            -Recurse `
+            -Force `
+            build `
+            -ErrorAction SilentlyContinue
 
-      - name: Build EXE
+          Remove-Item `
+            -Recurse `
+            -Force `
+            dist `
+            -ErrorAction SilentlyContinue
+
+          Remove-Item `
+            -Recurse `
+            -Force `
+            installer\dist `
+            -ErrorAction SilentlyContinue
+
+          New-Item `
+            -ItemType Directory `
+            -Force `
+            -Path installer\dist |
+            Out-Null
+
+
+      # =========================================================
+      # 10. BUILD APPLICATION EXE
+      # =========================================================
+      - name: Build application EXE
         shell: pwsh
         run: |
-          $root = (Get-Location).Path
-          $main = Join-Path $root "main.py"
 
-          if (!(Test-Path $main)) {
-            Write-Error "main.py not found."
+          $rootPath = `
+            (Get-Location).Path
+
+          $mainPath = `
+            Join-Path `
+            $rootPath `
+            "main.py"
+
+
+          Write-Host ""
+          Write-Host "======================================"
+          Write-Host "PYINSTALLER BUILD"
+          Write-Host "======================================"
+
+          Write-Host "ROOT:"
+          Write-Host $rootPath
+
+          Write-Host ""
+          Write-Host "ENTRY:"
+          Write-Host $mainPath
+
+
+          if (!(Test-Path $mainPath)) {
+
+            Write-Error `
+              "main.py was not found."
+
           }
 
-          Write-Host "Building:"
-          Write-Host $main
 
           python -m PyInstaller `
             --clean `
@@ -105,67 +234,151 @@ jobs:
             --onedir `
             --windowed `
             --name "QuotexVisionAI" `
-            --paths "$root" `
+            --paths "$rootPath" `
             --collect-all PySide6 `
             --collect-all cv2 `
             --collect-all mss `
-            "$main"
+            "$mainPath"
+
 
           if ($LASTEXITCODE -ne 0) {
-            Write-Error "PyInstaller build failed."
+
+            Write-Error `
+              "PyInstaller build failed."
+
           }
 
-      - name: Verify EXE
+
+      # =========================================================
+      # 11. VERIFY EXE
+      # =========================================================
+      - name: Verify generated EXE
         shell: pwsh
         run: |
-          $exe = "dist\QuotexVisionAI\QuotexVisionAI.exe"
+
+          $exe = `
+            "dist\QuotexVisionAI\QuotexVisionAI.exe"
+
 
           if (!(Test-Path $exe)) {
-            Write-Error "QuotexVisionAI.exe was not created."
+
+            Write-Error `
+              "QuotexVisionAI.exe was not created."
+
           }
 
-          Write-Host "EXE created successfully."
+
+          Write-Host ""
+          Write-Host "======================================"
+          Write-Host "EXE CREATED"
+          Write-Host "======================================"
+
           Get-Item $exe
 
+
+      # =========================================================
+      # 12. LIST PACKAGED CONTENT
+      # =========================================================
+      - name: Inspect packaged application
+        shell: pwsh
+        run: |
+
+          Write-Host ""
+          Write-Host "PACKAGED FILES:"
+          Write-Host ""
+
+          Get-ChildItem `
+            "dist\QuotexVisionAI" `
+            -Recurse `
+            -File |
+            Select-Object FullName
+
+
+      # =========================================================
+      # 13. INSTALL INNO SETUP
+      # =========================================================
       - name: Install Inno Setup
         shell: pwsh
         run: |
-          choco install innosetup -y --no-progress
+
+          choco install `
+            innosetup `
+            -y `
+            --no-progress
+
 
           if ($LASTEXITCODE -ne 0) {
-            Write-Error "Inno Setup installation failed."
+
+            Write-Error `
+              "Inno Setup installation failed."
+
           }
 
+
+      # =========================================================
+      # 14. BUILD NORMAL WINDOWS INSTALLER
+      # =========================================================
       - name: Build Windows installer
         shell: pwsh
         run: |
-          $iscc = "C:\Program Files (x86)\Inno Setup 6\ISCC.exe"
+
+          $iscc = `
+            "C:\Program Files (x86)\Inno Setup 6\ISCC.exe"
+
 
           if (!(Test-Path $iscc)) {
-            Write-Error "Inno Setup compiler not found."
+
+            Write-Error `
+              "Inno Setup compiler was not found."
+
           }
 
-          & $iscc "installer\QuotexVisionAI.iss"
+
+          & $iscc `
+            "installer\QuotexVisionAI.iss"
+
 
           if ($LASTEXITCODE -ne 0) {
-            Write-Error "Inno Setup build failed."
+
+            Write-Error `
+              "Inno Setup build failed."
+
           }
 
+
+      # =========================================================
+      # 15. VERIFY INSTALLER
+      # =========================================================
       - name: Verify installer
         shell: pwsh
         run: |
-          $setup = "installer\dist\QuotexVisionAI-Setup.exe"
+
+          $setup = `
+            "installer\dist\QuotexVisionAI-Setup.exe"
+
 
           if (!(Test-Path $setup)) {
-            Write-Error "Installer was not created."
+
+            Write-Error `
+              "QuotexVisionAI-Setup.exe was not created."
+
           }
 
-          Write-Host "Installer created successfully:"
+
+          Write-Host ""
+          Write-Host "======================================"
+          Write-Host "WINDOWS INSTALLER CREATED"
+          Write-Host "======================================"
+
           Get-Item $setup
 
-      - name: Upload installer
+
+      # =========================================================
+      # 16. UPLOAD INSTALLER
+      # =========================================================
+      - name: Upload Windows installer
         uses: actions/upload-artifact@v4
         with:
-          name: QuotexVisionAI-4.0.2-Installer
+          name: QuotexVisionAI-NextGen-4.0.3-Installer
           path: installer/dist/QuotexVisionAI-Setup.exe
           if-no-files-found: error
